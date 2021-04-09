@@ -2,7 +2,7 @@
     "name": "zoviet/owen",
     "description": "Реализация Modbus TCP для ПЛК ОВЕН",
     "type": "library",
-    "license": "GNU",
+    "license": "GPL-3.0-or-later",
     "authors": [
         {
             "name": "Zoviet",
