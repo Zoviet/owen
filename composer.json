@@ -1,0 +1,16 @@
+{
+    "name": "zoviet/owen",
+    "description": "Реализация Modbus TCP для ПЛК ОВЕН",
+    "type": "library",
+    "license": "GNU",
+    "authors": [
+        {
+            "name": "Zoviet",
+            "email": "alexandr@asustem.ru"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+		"adduc/phpmodbus": "*"
+	}
+}
