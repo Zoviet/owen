@@ -16,6 +16,7 @@ composer require zoviet/owen
 3. Поддержка чтения массивов
 4. Поддержка прямого и обратного порядка бит
 5. Запись и чтение Coils через байтовые слова
+6. Поддержка внутренней адресации OWEN
 
 
 ## Настройки соединения по умолчанию
@@ -28,43 +29,71 @@ composer require zoviet/owen
 ```
 
 
-### Использование
+### Использование 
 
 
  
 ```php
 
-// Изменение настроек соединения по умолчанию
+// простой вариант, в этом случае используется адресация Modbus TCP
 
-\owen\Config::set('connect', 'IP', '191.168.1.10');
-\owen\Config::set('connect', 'Port', 555);
+$owen =  new \owen\Connect();	//с настройками коннекта по умолчанию
 
-$owen = new \owen\Connect();
+$owen2 =  new \owen\Connect(['IP'=>'192.168.0.4']);	//с другим IP устройства
 
-$temp_addr = [2,2,'ReadRegister','REAL','Температура','tempOut',''];
+$temp = $owen->pull([4,2,'ReadRegister','REAL']); //считывание переменной типа REAL из четвертого регистра Modbus (2 байта)
 
-$temp = $owen->pull($temp_addr);
+$owen->push([6,2,'WriteRegister','REAL',105]); //запись числа 105 в шестой регистр Modbus (2 байта)
 
-$speed_addr = [11,1,'WriteRegister','WORD','Установка скорости вращения (от 0 до 1000)','speedin','15'];
+$owen->close();
 
-$speed = $owen->push($speed_addr);
+//Вариант с заданием переменных для считывания и записи с адресацией MODBUS (порядок не важен)
 
-$data_addr = [15,80,'ReadArray','WORD','Массив данных','DataArray',''];
-
-$data = $owen->push($data_addr); //массив данных с ПЛК
-
-// с использованием конфига
-
-$connect =  \owen\Config::get('connect'); 
-
-\owen\Config::set('connect','temp',[2,2,'ReadRegister','REAL','Температура','tempOut','']);
-
-\owen\Config::set('connect','speed',[11,1,'WriteRegister','WORD','Установка скорости вращения (от 0 до 1000)','speedin','15']);
-
-$temp = $owen->pull('temp');
-
-$speed = $owen->push('speed');
-
+	$vars = [
+		'temp'=> [2,2,'ReadRegister','REAL'],
+		'button_status'=> [0,1,'WriteCoil', 'BOOL','','Сообщение: считано состояние кнопки'], //5-ым элементом можно задать комментарий для логов
+		'button_push'=> [0,1,'WriteCoil', 'BOOL',true,'Сообщение: нажата кнопка'], //4-ый параметр - передаваемое значение по умолчанию при записи
+		'data'=>[15,80,'ReadArray','WORD'],
+	];
+	$connects = [
+		'IP'=>'127.0.0.1',  //IP-адрес PLC
+		'Port'=>502, //Порт
+		'UnitID'=>1, //ID устройства
+		'Endianess'=>'LOW_ENDIAN', //Порядок байт по умолчанию: обратный порядок: 'BIG_ENDIAN'
+	];
+	$connect =  new \owen\Connect($connects, $vars);	
+	
+	$temp = $connect->pull('temp');  //получение температуры
+	$button = $connect->pull('button_status'); //получение статуса кнопки
+	$connect->push('button_push'); //нажатие кнопки с использованием значения из $vars (true), установленное по умолчанию
+	$connect->push('button_push',false); //отпускание кнопки, в этом случае значение по умолчанию игнорируется
+	$data = $connect->pull('data'); //получение массива данных
+	
+	var_dump($connect::$messages); //сообщения класса
+	var_dump($connect::$errors); //ошибки класса
+	
+	$connect->close();
+	
+	//с адресацией переменных ОВЕН: таблицей адресов, где первое значение массива - внутренняя переменная [var]
+	
+	$vars2 = [
+		'Address1'=>[0,1,'WriteCoil', 'BOOL', true], 
+		'Address2'=>[0,2,'WriteCoil','BOOL',true], 
+		'Address3'=>[0,3,'WriteCoil','BOOL',true,'Обнуление массы датчика',], 			
+		'Address4'=>[0,8,'WriteCoil','BOOL','FALSE'], 
+		'Address5'=>[0,9,'WriteCoil','BOOL','FALSE'], //конец первого адреса ПЛК
+		'Address6'=>[1,2,'ReadRegister','REAL'], //занимает 2,3,4 и 5 адреса ПЛК, 1 и 2 адреса модбаса
+		'Address7'=>[2,2,'ReadRegister','REAL'], //5 на 4 не делится, поэтому стартуем с 8 адреса ПЛК и 4 адреса модбаса, занимает 4 и 5 адреса модбаса и регистры до 0B (11) внутренние, следующий адрес модбаса -6
+		'Address8'=>[3,2,'ReadRegister','REAL'], //внутренний адрес - 15, адрес модбаса следующий 8
+		'Address9'=>[4,2,'ReadRegister','DWORD'], //с 16 адреса внутреннего
+		'Address10'=>[5,1,'WriteRegister','WORD',1],
+		'Address11'=>[6,1,'WriteRegister','WORD',15],		
+	];
+	
+	$connect2 =  new \owen\Connect($connects, $vars2,true);	
+	var_dump($connect2->vars);
+	
+	$connect2->close();
 
 ```
 
